@@ -84,10 +84,12 @@ object HttpServer {
           , "/"       → middleware {
                           authMiddleware {
                             AuthedService {
-                              case        GET -> Root / ApiVersion / "repos"                   as user ⇒ implicit val u = user; repoEndpoint.getRepos
-                              case        GET -> Root / ApiVersion / "repos2"                  as user ⇒ implicit val u = user; repoEndpoint.getRepos2
-                              case        GET -> Root / ApiVersion / "homes" / LongVar(homeId) as user ⇒ implicit val u = user; homeEndpoint.getHome(HomeId(homeId))
-                              // case req @ POST -> Root / ApiVersion / "media"    as user ⇒ repoEndpoint.post(req)
+                              AppErrorHandler {
+                                case        GET -> Root / ApiVersion / "repos"                   as user ⇒ implicit val u = user; repoEndpoint.getRepos
+                                case        GET -> Root / ApiVersion / "repos2"                  as user ⇒ implicit val u = user; repoEndpoint.getRepos2
+                                case        GET -> Root / ApiVersion / "homes" / LongVar(homeId) as user ⇒ implicit val u = user; homeEndpoint.getHome(HomeId(homeId))
+                                // case req @ POST -> Root / ApiVersion / "media"    as user ⇒ repoEndpoint.post(req)
+                              }
                             }
                           }
                       }
@@ -95,4 +97,23 @@ object HttpServer {
       )
     )
   }
+}
+
+
+object AppErrorHandler {
+  private[this] val logger = getLogger
+
+  import cats.effect.Sync
+  import cats.syntax.all._
+  import org.http4s.dsl.Http4sDsl
+  import org.http4s.{AuthedRequest, Response}
+
+  def apply[T, F[_]: Sync](pf: PartialFunction[AuthedRequest[F, T], F[Response[F]]]): PartialFunction[AuthedRequest[F, T], F[Response[F]]] =
+    { case req => Sync[F].handleErrorWith(pf(req)) {
+        case app.service.ForbiddenError =>
+          val HD = Http4sDsl[F]; import HD._
+          Sync[F].delay(logger.info(s"${req.authInfo} does not have the required permissions")) *>
+            Forbidden()
+        }
+     }
 }

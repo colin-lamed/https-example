@@ -37,4 +37,8 @@ package service {
     override def getMessage: String = s"Call to $api failed: msg: $msg"
   }
 
+  final case object ForbiddenError extends RuntimeException with NoStackTrace {
+    override def getMessage: String = s"You do not have the required permission"
+  }
+
 }

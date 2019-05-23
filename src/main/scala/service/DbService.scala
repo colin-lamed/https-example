@@ -44,9 +44,10 @@ class DbService[F[_]: Async : ContextShift : Sync : EnvAsk](xa: Transactor[F]) {
 
   def getClient(clientId: String): F[Client] =
     for {
-      _   ← Sync[F].delay(logger.debug("in getClient"))
-      _   ← EnvAsk[F].reader(_.config.ds)
-      _   ← selectGetClient(clientId).transact(xa)
-      res ← callGetClient(clientId).transact(xa)
-    } yield res
+      _      ← Sync[F].delay(logger.debug("in getClient"))
+      _      ← EnvAsk[F].reader(_.config.ds)
+      _      ← selectGetClient(clientId).transact(xa)
+      client ← callGetClient(clientId).transact(xa)
+      _   ← if (client.clientId == "1") Sync[F].raiseError(ForbiddenError) else Sync[F].unit
+    } yield client
 }
