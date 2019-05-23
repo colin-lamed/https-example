@@ -80,7 +80,7 @@ object HttpServer {
     ResponseLogger(logHeaders = true, logBody = true)(
       RequestLogger(logHeaders = true, logBody = true)(
         Router(
-            "/status" → HttpRoutes.of[F] { case GET ⇒ NoContent() }
+            "/status" → HttpRoutes.of[F] { case GET -> Root ⇒ NoContent() }
           , "/"       → middleware {
                           authMiddleware {
                             AuthedService {
