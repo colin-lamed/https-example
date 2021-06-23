@@ -14,7 +14,7 @@ package object service {
 
   def onError[F[_] : Sync](api: String)(resp: Response[F]): F[Throwable] =
     for {
-      body ← resp.body.compile.toVector
+      body <- resp.body.compile.toVector
     } yield ServiceStatusError(api, new String(body.toArray), resp.status)
 
   /** log and convert Throwables

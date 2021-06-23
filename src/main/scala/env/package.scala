@@ -1,29 +1,23 @@
 package app
 
-import cats.Applicative
-import cats.effect.concurrent.Ref
-import cats.mtl.{ApplicativeAsk, DefaultApplicativeAsk}
+import cats.effect.Ref
+import cats.mtl.Ask
 import java.util.UUID
 import org.http4s.client.Client
 
 package object env {
-  type EnvAsk[F[_]] = ApplicativeAsk[F, Env[F]]
+  type EnvAsk[F[_]] = Ask[F, Env[F]]
   object EnvAsk {
     def apply[F[_]](implicit A: EnvAsk[F]) = A
   }
 
-  type ReqEnvAsk[F[_]] = ApplicativeAsk[F, ReqEnv]
+  type ReqEnvAsk[F[_]] = Ask[F, ReqEnv]
   object ReqEnvAsk {
     def apply[F[_]](implicit A: ReqEnvAsk[F]) = A
   }
 }
 
 package env {
-
-  class ApplicativeAskImpl[F[_] : Applicative, E](env: E) extends ApplicativeAsk[F, E] with DefaultApplicativeAsk[F, E] {
-    override val applicative = implicitly[Applicative[F]]
-    override def ask = applicative.pure(env)
-  }
 
   // -- Global Environment -----------------------
 

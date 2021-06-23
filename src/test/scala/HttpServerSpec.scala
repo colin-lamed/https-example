@@ -1,14 +1,15 @@
 package app
 
-import cats.effect.{ContextShift, IO, Timer}
-import cats.effect.concurrent.Ref
+import cats.effect.{IO, Ref}
 import doobie.util.transactor.Transactor
-import org.http4s.{Header, HttpApp, Method, Request, Response, Status, Uri}
+import org.http4s.{AuthScheme, Credentials, HttpApp, Method, Request, Response, Status, Uri}
 import org.http4s.client.Client
+import org.http4s.headers.{Authorization, `WWW-Authenticate`}
 
 import app.env.{Config, Env, DbConfig}
 
 class HttpServerSpec extends org.specs2.mutable.Specification {
+  import cats.effect.unsafe.implicits.global
 
   "HttpServer" >> {
 
@@ -17,18 +18,18 @@ class HttpServerSpec extends org.specs2.mutable.Specification {
       "return 401" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/devices")))
         response.status must beEqualTo(Status.Unauthorized)
-        response.headers.get(org.http4s.headers.`WWW-Authenticate`) must beEqualTo(Some(Header("WWW-Authenticate", "Bearer realm=\"Protected Realm\"")))
+        response.headers.get[`WWW-Authenticate`] must not be empty
       }
 
       "return 200" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/repos"))
-                                    .putHeaders(Header("Authorization", "Bearer accessToken")))
+                                    .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, "accessToken"))))
         response.status must beEqualTo(Status.Ok)
       }
 
       "return devices" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/repos"))
-                                    .putHeaders(Header("Authorization", "Bearer accessToken")))
+                                    .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, "accessToken"))))
         response.as[String].unsafeRunSync() must beEqualTo("""[{"repo":"repo1","lastModified":"1970-01-01T00:00:00Z","lastUpdated":"1970-01-01T00:00:00Z","children":[{"uri":"slug1.tar.gz","type":"SLUG"}]}]""")
       }
     }
@@ -38,46 +39,42 @@ class HttpServerSpec extends org.specs2.mutable.Specification {
       "return 401" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/homes/1")))
         response.status must beEqualTo(Status.Unauthorized)
-        response.headers.get(org.http4s.headers.`WWW-Authenticate`) must beEqualTo(Some(Header("WWW-Authenticate", "Bearer realm=\"Protected Realm\"")))
+        response.headers.get[`WWW-Authenticate`] must not be empty
       }
 
       "return 200" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/homes/1"))
-                                    .putHeaders(Header("Authorization", "Bearer accessToken")))
+                                    .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, "accessToken"))))
         response.status must beEqualTo(Status.Ok)
       }
 
       "return home" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/homes/1"))
-                                    .putHeaders(Header("Authorization", "Bearer accessToken")))
+                                    .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, "accessToken"))))
         response.as[String].unsafeRunSync() must beEqualTo("""{"id":175482,"address":"12 Newbury","postcode":"RG14 2PZ"}""")
       }
 
       "return 404" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/homes/2"))
-                                    .putHeaders(Header("Authorization", "Bearer accessToken")))
+                                    .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, "accessToken"))))
         response.status must beEqualTo(Status.NotFound)
       }
 
       "return no home" >> {
         val response = responseFor(Request[IO](Method.GET, Uri.uri("/v1/homes/2"))
-                                    .putHeaders(Header("Authorization", "Bearer accessToken")))
+                                    .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, "accessToken"))))
         response.as[String].unsafeRunSync() must beEqualTo("")
       }
     }
   }
 
   private[this] val httpApp: HttpApp[IO] = {
-    import scala.concurrent.ExecutionContext.global
-    implicit val cs: ContextShift[IO] = IO.contextShift(global)
-    implicit val timer: Timer[IO] = IO.timer(global)
-
     val client = {
       import org.http4s.dsl.io._
       Client.fromHttpApp(HttpApp[IO] {
-        case GET -> Root / "sso" / "v" / "1" / "user" ⇒
+        case GET -> Root / "sso" / "v" / "1" / "user" =>
           Ok("""{"username": "consumer_user"}""")
-        case GET -> Root / "artifactory" / "v" / "1" / "repos" ⇒
+        case GET -> Root / "artifactory" / "v" / "1" / "repos" =>
           Ok("""[{
             "repo"        : "repo1",
             "lastModified": "1970-01-01T00:00:00Z",
@@ -87,15 +84,15 @@ class HttpServerSpec extends org.specs2.mutable.Specification {
               "isFolder": false
             }]
           }]""")
-        case GET -> Root / "homes" / "1" ⇒
+        case GET -> Root / "homes" / "1" =>
           Ok("""{
             "id"      : "175482",
             "address" : "12 Newbury",
             "postcode": "RG14 2PZ"
           }""")
-        case GET -> Root / "homes" / i ⇒
+        case GET -> Root / "homes" / i =>
           NotFound(s"Home $i not found")
-        case r ⇒
+        case r =>
           NotFound(s"No mock for $r")
       })
     }

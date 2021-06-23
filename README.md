@@ -17,7 +17,7 @@ curl -i "http://localhost:8080/v1/homes/1" -H "Authorization: Bearer xxx"
 
 ## Resources
 
-- https://http4s.org/v0.18/
+- https://http4s.org/v1.0/
 - https://typelevel.org/cats-effect
 - https://typelevel.org/cats-mtl/
 - http://fs2.io/
