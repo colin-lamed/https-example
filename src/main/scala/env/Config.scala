@@ -1,6 +1,6 @@
 package app.env
 
-import com.typesafe.config.{ConfigFactory, Config ⇒ TSConfig}
+import com.typesafe.config.{ConfigFactory, Config => TSConfig}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 class Config(val underlying: TSConfig) {
